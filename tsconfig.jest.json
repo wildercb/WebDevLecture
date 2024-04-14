@@ -1,0 +1,7 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "jsx": "react-jsx"  // or "react" if you're not on TypeScript 4.1 or newer
+    }
+  }
+  
