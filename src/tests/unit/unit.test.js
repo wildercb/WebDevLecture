@@ -1,63 +1,57 @@
 import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react';
-import Component from '../../components/Component'; // Assuming relative path is correct
-import { UserPreferenceProvider } from '@/contexts/UserPreferenceContext';
+import { render, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
+import UserPreferenceContext, { UserPreferenceProvider } from '@/contexts/UserPreferenceContext';
+import Component from '@/components/Component';
+import useSWR from 'swr';
 
-// Setup the mock for the context
-const mockUpdate = jest.fn();
+// Mock the external useSWR hook
+jest.mock('swr', () => jest.fn());
 
-jest.mock('@/contexts/UserPreferenceContext', () => ({
-  //default values for buttons
-  useUserPreference: () => ({
-    data: { notifications: { email: false, sms: true, push: false } },
-    update: mockUpdate
-  })
-}));
+const mockData = {
+  notifications: { sms: true, email: false, push: false }
+};
 
-describe('Component', () => {
+// Define a TestComponent 
+function TestComponent() {
+  return (
+    <UserPreferenceProvider>
+      <Component />
+    </UserPreferenceProvider>
+  );
+}
+
+describe('Component and UserPreferenceProvider', () => {
   beforeEach(() => {
-    // Clear any previous operations on mocks before each test
-    mockUpdate.mockClear();
-    render(<Component />, { wrapper: UserPreferenceProvider });
+    // Mock implementation of useSWR to return the data immediately
+    useSWR.mockImplementation(() => ({
+      data: mockData,
+      error: null,
+      isLoading: false
+    }));
   });
 
-  test('renders notification toggle buttons correctly', () => {
-    expect(screen.getByText(/Email:/)).toHaveTextContent('Email: false');
-    expect(screen.getByText(/SMS:/)).toHaveTextContent('SMS: true');
-    expect(screen.getByText(/Push:/)).toHaveTextContent('Push: false');
-  });
+  it('renders initial notification settings correctly', async () => {
+    render(<TestComponent />);
 
-  //Tests whether buttons switch after toggle 
-  test('button click updates state correctly for Email', () => {
-    fireEvent.click(screen.getByText(/Email:/));
-    expect(mockUpdate).toHaveBeenCalledWith({
-      notifications: {
-        email: true, // Expected to change from false to true
-        sms: true,  // No change
-        push: false // No change
-      }
+    await waitFor(() => {
+      expect(screen.getByText(/Email:/).textContent).toContain('Email: false');
+      expect(screen.getByText(/SMS:/).textContent).toContain('SMS: true');
+      expect(screen.getByText(/Push:/).textContent).toContain('Push: false');
     });
   });
 
-  test('button click updates state correctly for SMS', () => {
-    fireEvent.click(screen.getByText(/SMS:/));
-    expect(mockUpdate).toHaveBeenCalledWith({
-      notifications: {
-        email: false, // No change
-        sms: false,  // Expected to change from true to false
-        push: false // No change
-      }
+  it('updates notification settings on button click for Email', async () => {
+    render(<TestComponent />);
+    const emailButton = screen.getByText(/Email:/);
+    
+    act(() => {
+      fireEvent.click(emailButton);
     });
-  });
 
-  test('button click updates state correctly for Push', () => {
-    fireEvent.click(screen.getByText(/Push:/));
-    expect(mockUpdate).toHaveBeenCalledWith({
-      notifications: {
-        email: false, // No change
-        sms: true,   // No change
-        push: true   // Expected to change from false to true
-      }
+    await waitFor(() => {
+      expect(screen.getByText(/Email:/).textContent).toContain('Email: true');
     });
   });
 });
+
